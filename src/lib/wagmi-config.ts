@@ -36,9 +36,6 @@ export const wagmiConfig = getDefaultConfig({
         "https://base-sepolia-rpc.publicnode.com",
       {
         batch: true,
-        fetchOptions: {
-          timeout: 60000,
-        },
         retryCount: 3,
         retryDelay: 1000,
       }

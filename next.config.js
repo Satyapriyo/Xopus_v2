@@ -1,21 +1,21 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable SWC minifier for better performance
-  swcMinify: true,
+  // Disable SWC minifier to avoid worker issues
+  swcMinify: false,
   
   // Optimize compilation and memory usage
   experimental: {
     // Enable app directory optimizations
     optimizePackageImports: ['lucide-react', '@rainbow-me/rainbowkit'],
-    // Enable turbo mode for faster builds
-    turbo: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
-      },
-    },
+    // Disable turbo mode temporarily to avoid worker issues
+    // turbo: {
+    //   rules: {
+    //     '*.svg': {
+    //       loaders: ['@svgr/webpack'],
+    //       as: '*.js',
+    //     },
+    //   },
+    // },
   },
   
   // Optimize images and reduce memory usage
@@ -25,10 +25,35 @@ const nextConfig = {
   
   // Webpack configuration for better performance and memory usage
   webpack: (config, { dev, isServer }) => {
-    // Optimize bundle splitting for better loading
+    // Fix Terser issues with web workers
     if (!dev && !isServer) {
       config.optimization = {
         ...config.optimization,
+        minimize: true,
+        minimizer: config.optimization.minimizer.map(minimizer => {
+          if (minimizer.constructor.name === 'TerserPlugin') {
+            minimizer.options.exclude = /HeartbeatWorker/
+            minimizer.options.terserOptions = {
+              ...minimizer.options.terserOptions,
+              parse: {
+                ecma: 2020,
+              },
+              compress: {
+                ecma: 2020,
+                drop_console: true,
+                drop_debugger: true,
+              },
+              mangle: {
+                safari10: true,
+              },
+              format: {
+                ecma: 2020,
+                safari10: true,
+              },
+            }
+          }
+          return minimizer
+        }),
         splitChunks: {
           chunks: 'all',
           cacheGroups: {
@@ -46,6 +71,27 @@ const nextConfig = {
         },
       }
     }
+
+    // Handle web workers
+    config.module.rules.push({
+      test: /\.worker\.(js|ts)$/,
+      use: {
+        loader: 'worker-loader',
+        options: {
+          name: 'static/[hash].worker.js',
+          publicPath: '/_next/',
+        },
+      },
+    })
+
+    // Exclude worker files from regular processing
+    config.module.rules.push({
+      test: /HeartbeatWorker\.(js|ts)$/,
+      type: 'asset/resource',
+      generator: {
+        filename: 'static/workers/[hash][ext][query]',
+      },
+    })
 
     // Reduce memory usage by limiting parallel processing
     config.parallelism = 1

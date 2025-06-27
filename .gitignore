@@ -219,3 +219,13 @@ coverage/
 # Temporary files
 *.tmp
 *.temp
+
+# Build artifacts and generated files
+**/HeartbeatWorker*.js
+**/HeartbeatWorker*.js.map
+static/media/
+static/workers/
+
+# Webpack build artifacts
+.webpack/
+webpack-stats.json
